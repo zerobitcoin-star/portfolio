@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="description" content="나만의 배당 포트폴리오 설계하기 — 커버드콜 ETF 월 배당 목표 달성 시뮬레이터">
+<title>나만의 배당 포트폴리오 설계하기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Pretendard:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#0a0a0f;--bg2:#13131a;--bg3:#1c1c27;--bg4:#252533;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#f0f0f8;--text2:#9090aa;--text3:#5a5a72;
+  --accent:#6c8bff;--accent-bg:rgba(108,139,255,0.1);--accent-border:rgba(108,139,255,0.3);
+  --green:#34d17a;--green-bg:rgba(52,209,122,0.1);--green-border:rgba(52,209,122,0.3);
+  --amber:#f5a623;--amber-bg:rgba(245,166,35,0.1);--amber-border:rgba(245,166,35,0.3);
+  --red:#ff5a5a;--red-bg:rgba(255,90,90,0.1);
+  --gold:#ffd166;--gold-bg:rgba(255,209,102,0.12);--gold-border:rgba(255,209,102,0.35);
+  --radius:14px;--radius-sm:9px;--radius-pill:999px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-text-size-adjust:100%;overflow-x:hidden;}
+.bg-orb{position:fixed;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0;}
+.orb1{width:420px;height:420px;background:rgba(108,139,255,0.07);top:-120px;right:-100px;}
+.orb2{width:320px;height:320px;background:rgba(52,209,122,0.05);bottom:80px;left:-80px;}
+.orb3{width:250px;height:250px;background:rgba(255,209,102,0.04);top:50%;left:50%;transform:translate(-50%,-50%);}
+.wrap{max-width:480px;margin:0 auto;padding:0 1rem 4rem;position:relative;z-index:1;}
+
+.header{text-align:center;padding:2.5rem 0 2rem;}
+.header-tag{display:inline-flex;align-items:center;gap:.4rem;background:var(--accent-bg);border:0.5px solid var(--accent-border);color:var(--accent);font-size:11px;font-weight:600;letter-spacing:.06em;padding:5px 14px;border-radius:var(--radius-pill);margin-bottom:1.25rem;text-transform:uppercase;}
+.header h1{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;line-height:1.2;letter-spacing:-0.04em;background:linear-gradient(135deg,#fff 0%,#c8d4ff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.header p{font-size:13px;color:var(--text2);margin-top:.6rem;line-height:1.6;}
+
+.seg{display:flex;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:4px;gap:4px;margin-bottom:1rem;}
+.seg-btn{flex:1;padding:.6rem .5rem;font-size:12px;font-family:'Pretendard',sans-serif;font-weight:500;border:none;background:transparent;color:var(--text2);cursor:pointer;border-radius:calc(var(--radius) - 4px);transition:all .2s;text-align:center;line-height:1.3;}
+.seg-btn .sub{display:block;font-size:10px;font-weight:400;margin-top:1px;opacity:.7;}
+.seg-btn.active{background:var(--bg4);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.4);}
+.isa-tabs .seg-btn.active{background:var(--gold-bg);color:var(--gold);box-shadow:0 1px 6px rgba(255,209,102,0.15);}
+
+.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:.625rem;margin-bottom:1rem;}
+.input-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:.9rem 1rem;}
+.input-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;}
+.input-row{display:flex;align-items:center;gap:.4rem;}
+.num-input{flex:1;font-size:1.1rem;font-weight:700;font-family:'Pretendard',sans-serif;background:transparent;border:none;color:var(--text);outline:none;width:100%;min-width:0;}
+.num-input::-webkit-inner-spin-button,.num-input::-webkit-outer-spin-button{-webkit-appearance:none;}
+.input-unit{font-size:12px;color:var(--text3);white-space:nowrap;}
+.input-sub{font-size:10px;color:var(--text3);margin-top:.3rem;}
+.input-sub strong{color:var(--text2);}
+
+.growth-block{background:var(--green-bg);border:0.5px solid var(--green-border);border-radius:var(--radius);padding:.9rem 1rem;margin-bottom:1rem;}
+.growth-label{font-size:10px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;display:flex;justify-content:space-between;align-items:center;}
+.growth-val{font-size:15px;font-weight:700;color:var(--green);}
+.growth-note{font-size:10px;color:var(--green);opacity:.65;margin-top:.45rem;line-height:1.5;}
+
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.1rem;margin-bottom:1rem;}
+.card-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.75rem;}
+
+.isa-banner{background:var(--gold-bg);border:0.5px solid var(--gold-border);border-radius:var(--radius-sm);padding:.75rem .9rem;margin-bottom:1rem;}
+.isa-banner-title{font-size:12px;font-weight:600;color:var(--gold);margin-bottom:.4rem;}
+.isa-pill-grid{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;}
+.isa-pill{background:rgba(255,209,102,0.08);border:0.5px solid var(--gold-border);border-radius:99px;padding:3px 10px;font-size:11px;color:var(--text2);text-align:center;}
+.isa-pill span{color:var(--gold);font-weight:600;}
+.isa-note{font-size:10px;color:var(--text3);margin-top:.5rem;line-height:1.5;}
+
+.info-row{display:flex;gap:.5rem;align-items:flex-start;padding:.55rem .75rem;border-radius:var(--radius-sm);background:var(--accent-bg);border:0.5px solid var(--accent-border);font-size:11px;color:var(--text2);margin-bottom:1rem;line-height:1.5;}
+.info-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px;background:var(--accent);}
+
+.index-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;}
+.index-btn{border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:.55rem .25rem;cursor:pointer;font-size:12px;font-family:'Pretendard',sans-serif;font-weight:500;background:var(--bg3);color:var(--text2);text-align:center;transition:all .2s;}
+.index-btn.active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border);}
+
+.slider-block{margin-bottom:.9rem;}
+.slider-block:last-child{margin-bottom:0;}
+.slider-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;}
+.slider-header label{font-size:13px;color:var(--text2);}
+.slider-val{font-size:15px;font-weight:600;color:var(--text);}
+input[type=range]{width:100%;height:4px;appearance:none;-webkit-appearance:none;background:var(--bg4);border-radius:99px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);box-shadow:0 0 0 3px var(--accent-bg);cursor:pointer;}
+.ratio-bar{display:flex;height:5px;border-radius:99px;overflow:hidden;margin:.5rem 0 .35rem;}
+.ratio-cc{background:var(--accent);transition:width .25s;}
+.ratio-og{background:var(--bg4);}
+.ratio-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);}
+
+/* 달성 요약 상단 */
+.achieve-top{display:grid;grid-template-columns:1fr 1fr;gap:.625rem;margin-bottom:.625rem;}
+.achieve-box{border-radius:var(--radius-sm);padding:.85rem .9rem;}
+.achieve-box.ab-blue{background:var(--accent-bg);border:0.5px solid var(--accent-border);}
+.achieve-box.ab-green{background:var(--green-bg);border:0.5px solid var(--green-border);}
+.achieve-label{font-size:10px;font-weight:600;opacity:.8;margin-bottom:.25rem;text-transform:uppercase;letter-spacing:.05em;}
+.ab-blue .achieve-label{color:var(--accent);}
+.ab-green .achieve-label{color:var(--green);}
+.achieve-val{font-size:1.15rem;font-weight:700;}
+.ab-blue .achieve-val{color:var(--accent);}
+.ab-green .achieve-val{color:var(--green);}
+.achieve-sub{font-size:10px;margin-top:.15rem;opacity:.7;}
+.ab-blue .achieve-sub{color:var(--accent);}
+.ab-green .achieve-sub{color:var(--green);}
+
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:.625rem;}
+.metric{background:var(--bg3);border-radius:var(--radius-sm);padding:.8rem .9rem;border:0.5px solid var(--border);}
+.metric.full{grid-column:1/-1;}
+.metric.hi-green{background:var(--green-bg);border-color:var(--green-border);}
+.metric-label{font-size:10px;color:var(--text3);margin-bottom:.3rem;font-weight:500;}
+.metric.hi-green .metric-label{color:var(--green);opacity:.8;}
+.metric-val{font-size:1.2rem;font-weight:700;color:var(--text);}
+.metric.hi-green .metric-val{color:var(--green);}
+.metric-sub{font-size:10px;color:var(--text3);margin-top:.15rem;}
+.metric.hi-green .metric-sub{color:var(--green);opacity:.6;}
+
+.tax-compare{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.6rem;}
+.tax-box{border-radius:var(--radius-sm);padding:.65rem .8rem;border:0.5px solid var(--border);}
+.tax-box.t-normal{background:var(--bg3);}
+.tax-box.t-isa{background:var(--gold-bg);border-color:var(--gold-border);}
+.tax-box-label{font-size:10px;font-weight:600;color:var(--text3);margin-bottom:.25rem;text-transform:uppercase;}
+.tax-box.t-isa .tax-box-label{color:var(--gold);}
+.tax-rate{font-size:1.25rem;font-weight:700;color:var(--text);}
+.tax-box.t-isa .tax-rate{color:var(--gold);}
+.tax-desc{font-size:10px;color:var(--text3);margin-top:.2rem;line-height:1.4;}
+.saving-row{display:flex;justify-content:space-between;align-items:center;padding:.3rem 0;border-bottom:0.5px solid var(--border);}
+.saving-row:last-child{border-bottom:none;}
+.saving-label{font-size:12px;color:var(--text2);}
+.saving-isa{font-size:13px;font-weight:600;color:var(--green);}
+.saving-diff{font-size:10px;color:var(--green);background:var(--green-bg);padding:1px 7px;border-radius:99px;}
+
+.tl-row{padding:.55rem 0;border-bottom:0.5px solid var(--border);}
+.tl-row:last-child{border-bottom:none;}
+.tl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;}
+.tl-year{font-size:12px;font-weight:500;color:var(--text2);}
+.tl-flag{font-size:10px;color:var(--green);font-weight:600;background:var(--green-bg);padding:2px 9px;border-radius:99px;border:0.5px solid var(--green-border);}
+.tl-bar-bg{height:6px;border-radius:99px;background:var(--bg4);overflow:hidden;margin-bottom:.28rem;}
+.tl-bar-fill{height:100%;border-radius:99px;background:var(--accent);transition:width .4s;}
+.tl-bar-fill.done{background:var(--green);}
+.tl-bottom{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);}
+.tl-bottom strong{color:var(--text2);font-weight:500;}
+
+.etf-list{display:flex;flex-direction:column;gap:.5rem;}
+.etf-item{background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:.8rem;}
+.etf-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem;}
+.etf-ticker{font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;flex-shrink:0;margin-left:.4rem;}
+.badge-cc{background:var(--accent-bg);color:var(--accent);border:0.5px solid var(--accent-border);}
+.badge-og{background:var(--green-bg);color:var(--green);border:0.5px solid var(--green-border);}
+.etf-idx{font-size:10px;color:var(--text3);margin-bottom:.4rem;}
+.etf-bar-bg{height:3px;border-radius:99px;background:var(--bg4);overflow:hidden;margin-bottom:.45rem;}
+.etf-bar-fill{height:100%;border-radius:99px;}
+.etf-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;}
+.etf-stat-label{font-size:9px;color:var(--text3);text-align:center;}
+.etf-stat-val{font-size:11px;font-weight:600;color:var(--text2);text-align:center;}
+
+.pick-group-label{font-size:11px;font-weight:600;color:var(--text3);margin:.8rem 0 .4rem;display:flex;align-items:center;gap:.4rem;text-transform:uppercase;letter-spacing:.06em;}
+.pick-group-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.pick-grid{display:flex;flex-direction:column;gap:.4rem;}
+.pick-item{background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;transition:border-color .15s;}
+.pick-item.on-cc{border-color:var(--accent-border);background:var(--accent-bg);}
+.pick-item.on-og{border-color:var(--green-border);background:var(--green-bg);}
+.pick-row{display:flex;align-items:center;gap:.6rem;padding:.65rem .8rem;cursor:pointer;}
+.chk{width:18px;height:18px;border-radius:5px;border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;transition:all .15s;color:transparent;}
+.chk.on-cc{background:var(--accent);border-color:var(--accent);color:#fff;}
+.chk.on-og{background:var(--green);border-color:var(--green);color:#fff;}
+.pick-info{flex:1;min-width:0;}
+.pick-ticker{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pick-idx{font-size:10px;color:var(--text3);}
+.pick-yld-val{font-size:13px;font-weight:700;color:var(--text);text-align:right;}
+.pick-yld-label{font-size:9px;color:var(--text3);text-align:right;}
+.wt-row{display:flex;align-items:center;gap:.5rem;padding:.3rem .8rem .65rem;border-top:0.5px solid var(--border);}
+.wt-label{font-size:10px;color:var(--text3);min-width:22px;}
+.wt-row input[type=range]{flex:1;}
+.wt-val-span{font-size:11px;font-weight:600;color:var(--text2);min-width:32px;text-align:right;}
+.wt-summary{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;}
+.wt-summary-label{font-size:11px;color:var(--text3);}
+.wt-total{font-size:13px;font-weight:700;}
+.wt-total.ok{color:var(--green);}
+.wt-total.over{color:var(--red);}
+.wt-bar-bg{height:4px;border-radius:99px;background:var(--bg4);overflow:hidden;margin-bottom:.75rem;}
+.wt-bar-fill{height:100%;border-radius:99px;transition:width .3s,background .3s;}
+.add-section{margin-top:.75rem;border-top:0.5px solid var(--border);padding-top:.75rem;}
+.add-row{display:flex;gap:.4rem;align-items:center;}
+.add-row input[type=text],.add-row input[type=number]{font-size:12px;font-family:'Pretendard',sans-serif;padding:.5rem .65rem;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg3);color:var(--text);outline:none;}
+.add-row input[type=text]{flex:1;}
+.add-row input[type=number]{width:60px;}
+.add-row select{font-size:11px;font-family:'Pretendard',sans-serif;padding:.5rem .4rem;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg3);color:var(--text);outline:none;cursor:pointer;}
+.add-btn{padding:.5rem .8rem;font-size:12px;font-family:'Pretendard',sans-serif;font-weight:600;border:0.5px solid var(--accent-border);border-radius:var(--radius-sm);background:var(--accent-bg);color:var(--accent);cursor:pointer;white-space:nowrap;transition:all .15s;}
+.add-btn:active{background:var(--accent);color:#fff;}
+
+.step-row{display:flex;gap:.65rem;align-items:flex-start;padding:.55rem 0;border-bottom:0.5px solid var(--border);}
+.step-row:last-child{border-bottom:none;}
+.step-badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent-bg);border:0.5px solid var(--accent-border);color:var(--accent);font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px;}
+.step-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:.15rem;}
+.step-text{font-size:12px;color:var(--text2);line-height:1.55;}
+.warn-box{background:var(--amber-bg);border-left:2px solid var(--amber);padding:.75rem .9rem;border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:12px;color:var(--text2);line-height:1.65;}
+.warn-box strong{color:var(--amber);}
+.chart-wrap{position:relative;width:100%;}
+.empty-msg{font-size:13px;color:var(--text3);text-align:center;padding:1.5rem 0;}
+.footer{text-align:center;padding:2rem 0 1rem;font-size:11px;color:var(--text3);line-height:1.8;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.card,.seg,.input-card,.growth-block,.isa-banner{animation:fadeUp .35s ease both;}
+</style>
+</head>
+<body>
+<div class="bg-orb orb1"></div>
+<div class="bg-orb orb2"></div>
+<div class="bg-orb orb3"></div>
+<div class="wrap">
+  <div class="header">
+    <div class="header-tag">📊 배당 포트폴리오 플래너</div>
+    <h1>나만의 배당<br>포트폴리오 설계하기</h1>
+    <p>나이와 초기 투자금을 입력하고<br>목표 배당 달성 시나리오를 확인하세요</p>
+  </div>
+
+  <div class="input-grid">
+    <div class="input-card">
+      <div class="input-label">현재 나이</div>
+      <div class="input-row">
+        <input class="num-input" type="number" id="ageInput" min="20" max="80" value="35" oninput="onInputChange()">
+        <span class="input-unit">세</span>
+      </div>
+      <div class="input-sub">목표까지 <strong id="yearsLeft">-</strong>년 예상</div>
+    </div>
+    <div class="input-card">
+      <div class="input-label">초기 투자금</div>
+      <div class="input-row">
+        <input class="num-input" type="number" id="initInvInput" min="0" max="100000" step="100" value="3000" oninput="onInputChange()">
+        <span class="input-unit">만원</span>
+      </div>
+      <div class="input-sub">약 <strong id="initDisplay">3,000만원</strong></div>
+    </div>
+  </div>
+
+  <div class="growth-block">
+    <div class="growth-label">
+      <span>📈 연간 주가 상승률 (자본차익)</span>
+      <span class="growth-val" id="growthVal">5%</span>
+    </div>
+    <input type="range" min="0" max="15" step="0.5" value="5" id="growthSlider" oninput="onGrowthChange()" style="accent-color:var(--green)">
+    <div class="growth-note" id="growthNote">커버드콜 ETF는 옵션 매도로 상승이 제한되어 자본차익이 낮을 수 있습니다. 혼합 포트폴리오 기준 5%, 원지수 위주라면 7~10%가 현실적입니다.</div>
+  </div>
+
+  <div class="seg isa-tabs" id="acctTabs">
+    <button class="seg-btn active" onclick="switchAcct('normal',this)">📂 일반 계좌<span class="sub">15.4% 배당소득세</span></button>
+    <button class="seg-btn" onclick="switchAcct('isa',this)">🏦 ISA 계좌<span class="sub">200만 비과세 · 9.9%</span></button>
+  </div>
+  <div class="isa-banner" id="isaBanner" style="display:none">
+    <div class="isa-banner-title">✨ ISA 계좌 혜택 (중개형 기준)</div>
+    <div class="isa-pill-grid">
+      <div class="isa-pill">비과세 <span>200만원</span></div>
+      <div class="isa-pill">초과분 <span>9.9%</span></div>
+      <div class="isa-pill">종합과세 <span>면제</span></div>
+      <div class="isa-pill">납입한도 <span>연 2,000만</span></div>
+    </div>
+    <div class="isa-note">※ 3년 의무 보유 · 국내 상장 ETF만 가능 · 서민형은 비과세 400만원</div>
+  </div>
+
+  <div class="seg">
+    <button class="seg-btn active" onclick="switchMode('auto',this)">🤖 자동 추천<span class="sub">지수 선택 → 자동 구성</span></button>
+    <button class="seg-btn" onclick="switchMode('custom',this)">✏️ 직접 선택<span class="sub">종목 골라서 직접 구성</span></button>
+  </div>
+
+  <div id="autoPane">
+    <div class="seg">
+      <button class="seg-btn active" onclick="switchMarket('kr',this)">🇰🇷 국내 ETF<span class="sub">TIGER · KODEX · ACE</span></button>
+      <button class="seg-btn" onclick="switchMarket('us',this)">🇺🇸 미국 직투<span class="sub">QQQ · VOO · QYLD</span></button>
+    </div>
+    <div class="info-row"><div class="info-dot"></div><span id="mktInfo">국내 상장 ETF — 원화 거래, 환전 불필요</span></div>
+    <div class="card">
+      <div class="card-label">관심 지수</div>
+      <div class="index-grid">
+        <div class="index-btn active" data-idx="sp500" onclick="toggleIdx(this)">S&P 500</div>
+        <div class="index-btn active" data-idx="nasdaq" onclick="toggleIdx(this)">나스닥 100</div>
+        <div class="index-btn active" data-idx="dow" onclick="toggleIdx(this)">다우존스</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">투자 설정</div>
+      <div class="slider-block">
+        <div class="slider-header"><label>월 목표 배당 (세후)</label><span class="slider-val" id="aTargetVal">150만원</span></div>
+        <input type="range" min="50" max="500" step="10" value="150" id="aTarget" oninput="calc()">
+      </div>
+      <div class="slider-block">
+        <div class="slider-header"><label>커버드콜 비중</label><span class="slider-val" id="aCCVal">70%</span></div>
+        <input type="range" min="30" max="90" step="10" value="70" id="aCCRatio" oninput="calc()">
+        <div class="ratio-bar"><div class="ratio-cc" id="rCC" style="width:70%"></div><div class="ratio-og" id="rOG" style="width:30%"></div></div>
+        <div class="ratio-labels"><span>커버드콜 <span id="ccPct">70</span>%</span><span>원지수 <span id="ogPct">30</span>%</span></div>
+      </div>
+      <div class="slider-block">
+        <div class="slider-header"><label>월 추가 투자액</label><span class="slider-val" id="aInvVal">300만원</span></div>
+        <input type="range" min="0" max="1000" step="50" value="300" id="aInv" oninput="calc()">
+      </div>
+    </div>
+  </div>
+
+  <div id="customPane" style="display:none">
+    <div class="card">
+      <div class="card-label">종목 선택 · 비중 설정</div>
+      <div class="wt-summary"><span class="wt-summary-label">비중 합계</span><span class="wt-total" id="wtTotal">0%</span></div>
+      <div class="wt-bar-bg"><div class="wt-bar-fill" id="wtBar" style="width:0%"></div></div>
+      <div class="pick-group-label"><span class="pick-group-dot" style="background:var(--accent)"></span>커버드콜 ETF</div>
+      <div class="pick-grid" id="pickCC"></div>
+      <div class="pick-group-label" style="margin-top:.9rem"><span class="pick-group-dot" style="background:var(--green)"></span>원지수 ETF</div>
+      <div class="pick-grid" id="pickOG"></div>
+      <div class="add-section">
+        <div class="card-label" style="margin-bottom:.5rem">직접 추가</div>
+        <div class="add-row">
+          <input type="text" id="addTicker" placeholder="티커 (예: SCHD)">
+          <input type="number" id="addYield" placeholder="배당%" min="0" max="50" step="0.1">
+          <select id="addType"><option value="cc">커버드콜</option><option value="og">원지수</option></select>
+          <button class="add-btn" onclick="addETF()">추가</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">투자 설정</div>
+      <div class="slider-block">
+        <div class="slider-header"><label>월 목표 배당 (세후)</label><span class="slider-val" id="cTargetVal">150만원</span></div>
+        <input type="range" min="50" max="500" step="10" value="150" id="cTarget" oninput="calcCustom()">
+      </div>
+      <div class="slider-block">
+        <div class="slider-header"><label>월 추가 투자액</label><span class="slider-val" id="cInvVal">300만원</span></div>
+        <input type="range" min="0" max="1000" step="50" value="300" id="cInv" oninput="calcCustom()">
+      </div>
+    </div>
+  </div>
+
+  <div id="resultPane">
+    <div class="card" id="savingCard" style="display:none">
+      <div class="card-label">ISA 절세 효과 비교</div>
+      <div class="tax-compare">
+        <div class="tax-box t-normal"><div class="tax-box-label">일반 계좌</div><div class="tax-rate" id="taxNormal">-</div><div class="tax-desc">15.4% 배당소득세<br>종합과세 대상</div></div>
+        <div class="tax-box t-isa"><div class="tax-box-label">ISA 계좌 ✨</div><div class="tax-rate" id="taxISA">-</div><div class="tax-desc">200만 비과세 + 9.9%<br>분리과세 종합과세 면제</div></div>
+      </div>
+      <div id="savingRows"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">목표 달성 요약</div>
+      <div class="achieve-top">
+        <div class="achieve-box ab-blue">
+          <div class="achieve-label">목표 달성 시점</div>
+          <div class="achieve-val" id="rAchieve">-</div>
+          <div class="achieve-sub" id="rAchieveSub">-</div>
+        </div>
+        <div class="achieve-box ab-green">
+          <div class="achieve-label">달성 예상 나이</div>
+          <div class="achieve-val" id="rAchieveAge">-</div>
+          <div class="achieve-sub" id="rAchieveAgeSub">-</div>
+        </div>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric"><div class="metric-label">필요 원금 (세전)</div><div class="metric-val" id="rPrincipal">-</div><div class="metric-sub">목표 달성 기준</div></div>
+        <div class="metric"><div class="metric-label">평균 배당률</div><div class="metric-val" id="rYield">-</div><div class="metric-sub">연간 세전</div></div>
+        <div class="metric"><div class="metric-label">실효 세율</div><div class="metric-val" id="rTaxRate">-</div><div class="metric-sub" id="rTaxDesc">-</div></div>
+        <div class="metric"><div class="metric-label">세후 월 배당 (달성시)</div><div class="metric-val" id="rAfterTax">-</div><div class="metric-sub">세금 차감 후</div></div>
+        <div class="metric hi-green full"><div class="metric-label">주가 상승률 반영</div><div class="metric-val" id="rGrowth">-</div><div class="metric-sub" id="rGrowthSub">-</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">분할매수 타임라인</div>
+      <div id="tlDiv"></div>
+      <div class="chart-wrap" style="height:220px;margin-top:1rem"><canvas id="tlChart"></canvas></div>
+    </div>
+    <div class="card"><div class="card-label">ETF 구성</div><div class="etf-list" id="etfList"></div></div>
+    <div class="card"><div class="card-label">ETF 비중 분포</div><div class="chart-wrap" style="height:200px"><canvas id="pieChart"></canvas></div></div>
+    <div class="card" id="stepsCard"><div class="card-label">단계별 적립 전략</div><div id="stepsDiv"></div></div>
+    <div class="card"><div class="warn-box" id="warnBox"></div></div>
+  </div>
+
+  <div class="footer">본 계산기는 참고용이며 투자 권유가 아닙니다.<br>배당률·세율·주가 상승률은 시장·세법 변화에 따라 달라질 수 있습니다.</div>
+</div>
+
+<script>
+const DB={
+  kr:{
+    sp500:[
+      {ticker:'TIGER 미국S&P500커버드콜(합성)',idx:'S&P 500',type:'cc',yield:.10,wt:.25},
+      {ticker:'KODEX 미국S&P500커버드콜OTM',idx:'S&P 500',type:'cc',yield:.08,wt:.20},
+      {ticker:'TIGER 미국S&P500',idx:'S&P 500',type:'og',yield:.014,wt:.10},
+    ],
+    nasdaq:[
+      {ticker:'ACE 미국나스닥100커버드콜(합성)',idx:'나스닥 100',type:'cc',yield:.11,wt:.25},
+      {ticker:'TIGER 미국나스닥100커버드콜OTM',idx:'나스닥 100',type:'cc',yield:.07,wt:.10},
+      {ticker:'TIGER 미국나스닥100',idx:'나스닥 100',type:'og',yield:.007,wt:.10},
+    ],
+    dow:[
+      {ticker:'KODEX 미국다우존스커버드콜(합성)',idx:'다우존스',type:'cc',yield:.09,wt:.10},
+      {ticker:'TIGER 미국다우존스30',idx:'다우존스',type:'og',yield:.018,wt:.10},
+    ],
+    info:'국내 상장 ETF — 원화 거래, 환전 불필요',
+    warn:'국내 상장 ETF는 ISA 계좌에서 손익통산 + 9.9% 저율과세 혜택이 적용됩니다. 분배율은 운용사 정책에 따라 변동될 수 있습니다.',
+    steps:['KODEX S&P500커버드콜OTM + TIGER 미국S&P500 집중, 안정적 배당 기반 확보','ACE 나스닥100커버드콜 추가, 배당 수익률 향상','목표 포트폴리오 완성 및 분기별 리밸런싱 실시']
+  },
+  us:{
+    sp500:[
+      {ticker:'XYLD',idx:'S&P 500',type:'cc',yield:.105,wt:.25},
+      {ticker:'JEPI',idx:'S&P 500',type:'cc',yield:.08,wt:.20},
+      {ticker:'VOO',idx:'S&P 500',type:'og',yield:.015,wt:.10},
+    ],
+    nasdaq:[
+      {ticker:'QYLD',idx:'나스닥 100',type:'cc',yield:.115,wt:.25},
+      {ticker:'QQQX',idx:'나스닥 100',type:'cc',yield:.07,wt:.10},
+      {ticker:'QQQ',idx:'나스닥 100',type:'og',yield:.007,wt:.10},
+    ],
+    dow:[
+      {ticker:'DJD',idx:'다우존스',type:'cc',yield:.09,wt:.10},
+      {ticker:'DIA',idx:'다우존스',type:'og',yield:.019,wt:.10},
+    ],
+    info:'미국 직접 투자 — 달러 거래, 배당 원천징수 15%, 환율 영향 있음 (ISA 불가)',
+    warn:'미국 직접 상장 ETF는 ISA 계좌에서 투자할 수 없습니다. 15% 원천징수 후 추가 국내 과세가 적용됩니다. QYLD·XYLD는 장기 보유 시 원금이 서서히 감소할 수 있습니다.',
+    steps:['JEPI + VOO 집중, 낮은 변동성으로 안정적 배당 기반 확보','QYLD / XYLD 추가, 배당 비중 확대하여 수익률 향상','목표 포트폴리오 완성 및 분기별 리밸런싱 실시']
+  }
+};
+let POOL_CC=[
+  {ticker:'TIGER 미국S&P500커버드콜(합성)',idx:'S&P 500',yield:.10},
+  {ticker:'KODEX 미국S&P500커버드콜OTM',idx:'S&P 500',yield:.08},
+  {ticker:'ACE 미국나스닥100커버드콜(합성)',idx:'나스닥 100',yield:.11},
+  {ticker:'TIGER 미국나스닥100커버드콜OTM',idx:'나스닥 100',yield:.07},
+  {ticker:'KODEX 미국다우존스커버드콜(합성)',idx:'다우존스',yield:.09},
+  {ticker:'XYLD',idx:'S&P 500',yield:.105},
+  {ticker:'JEPI',idx:'S&P 500',yield:.08},
+  {ticker:'QYLD',idx:'나스닥 100',yield:.115},
+  {ticker:'QQQX',idx:'나스닥 100',yield:.07},
+  {ticker:'DJD',idx:'다우존스',yield:.09},
+];
+let POOL_OG=[
+  {ticker:'TIGER 미국S&P500',idx:'S&P 500',yield:.014},
+  {ticker:'TIGER 미국나스닥100',idx:'나스닥 100',yield:.007},
+  {ticker:'TIGER 미국다우존스30',idx:'다우존스',yield:.018},
+  {ticker:'VOO',idx:'S&P 500',yield:.015},
+  {ticker:'QQQ',idx:'나스닥 100',yield:.007},
+  {ticker:'DIA',idx:'다우존스',yield:.019},
+  {ticker:'SCHD',idx:'배당성장',yield:.035},
+];
+const COLORS=['#6c8bff','#a0b4ff','#4f6ef7','#818cf8','#c4b5fd','#34d17a','#6ee7a0','#4ade80','#f5a623','#fb923c'];
+let tlCI=null,pieCI=null;
+let curMode='auto',curMarket='kr',curAcct='normal';
+let activeIdx={sp500:true,nasdaq:true,dow:true};
+let selected={};
+
+function getAge(){return Math.max(20,Math.min(80,parseInt(document.getElementById('ageInput').value)||35));}
+function getInitInv(){return Math.max(0,parseInt(document.getElementById('initInvInput').value)||0);}
+function getGrowthRate(){return parseFloat(document.getElementById('growthSlider').value)/100;}
+
+function onInputChange(){
+  document.getElementById('initDisplay').textContent=getInitInv().toLocaleString()+'만원';
+  if(curMode==='auto') calc(); else calcCustom();
+}
+function onGrowthChange(){
+  const g=parseFloat(document.getElementById('growthSlider').value);
+  document.getElementById('growthVal').textContent=g+'%';
+  document.getElementById('growthNote').textContent=
+    g===0?'주가 상승 미반영 — 가장 보수적인 시나리오입니다.':
+    g<=2?'커버드콜 위주 포트폴리오 보수적 상승 반영':
+    g<=5?'혼합 포트폴리오 적정 상승 반영 (권장)':
+    g<=8?'원지수 위주 낙관적 시나리오 (S&P500 역사 평균 약 7~10%)':
+    '공격적 시나리오 — 실제 수익은 이보다 낮을 수 있습니다.';
+  if(curMode==='auto') calc(); else calcCustom();
+}
+
+function effectiveTaxRate(annualDiv,acct){
+  if(acct==='normal') return 0.154;
+  if(annualDiv<=200) return 0;
+  return ((annualDiv-200)*0.099)/annualDiv;
+}
+function afterTaxMonthly(principal,avgYield,acct){
+  const annualDiv=principal*avgYield;
+  return Math.round((annualDiv*(1-effectiveTaxRate(annualDiv,acct)))/12);
+}
+function principalForTarget(target,avgYield,acct){
+  let lo=0,hi=300000;
+  for(let i=0;i<60;i++){
+    const mid=(lo+hi)/2;
+    if(afterTaxMonthly(mid,avgYield,acct)<target) lo=mid; else hi=mid;
+  }
+  return Math.round(hi);
+}
+
+function switchAcct(a,el){
+  curAcct=a;
+  document.getElementById('acctTabs').querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const isISA=(a==='isa');
+  document.getElementById('isaBanner').style.display=isISA?'block':'none';
+  document.getElementById('savingCard').style.display=isISA?'block':'none';
+  if(isISA&&curMarket==='us') switchMarket('kr',document.querySelector('#autoPane .seg .seg-btn'));
+  if(curMode==='auto') calc(); else calcCustom();
+}
+function switchMode(m,el){
+  curMode=m;
+  el.parentElement.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('autoPane').style.display=m==='auto'?'block':'none';
+  document.getElementById('customPane').style.display=m==='custom'?'block':'none';
+  document.getElementById('stepsCard').style.display=m==='auto'?'block':'none';
+  if(m==='custom'){renderPicks();calcCustom();}else calc();
+}
+function switchMarket(m,el){
+  if(curAcct==='isa'&&m==='us'){alert('ISA 계좌에서는 미국 직접 상장 ETF 투자가 불가합니다.\n국내 상장 ETF(TIGER·KODEX·ACE)를 이용해주세요.');return;}
+  curMarket=m;
+  document.querySelectorAll('#autoPane .seg .seg-btn').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+  document.getElementById('mktInfo').textContent=DB[m].info;
+  document.getElementById('warnBox').innerHTML='<strong>유의사항</strong> — '+DB[m].warn+' 본 계산기는 참고용이며 투자 권유가 아닙니다.';
+  calc();
+}
+function toggleIdx(el){
+  const k=el.dataset.idx;activeIdx[k]=!activeIdx[k];
+  el.classList.toggle('active',activeIdx[k]);calc();
+}
+function sid(t){return t.replace(/[^a-zA-Z0-9가-힣]/g,'_');}
+
+function renderPicks(){
+  document.getElementById('pickCC').innerHTML=POOL_CC.map(e=>pickHTML(e,'cc')).join('');
+  document.getElementById('pickOG').innerHTML=POOL_OG.map(e=>pickHTML(e,'og')).join('');
+  renderWtBar();
+}
+function pickHTML(e,type){
+  const s=selected[e.ticker];const on=!!s;
+  return`<div class="pick-item ${on?(type==='cc'?'on-cc':'on-og'):''}">
+    <div class="pick-row" onclick="togglePick('${e.ticker}','${type}',${e.yield},'${e.idx}')">
+      <div class="chk ${on?(type==='cc'?'on-cc':'on-og'):''}">✓</div>
+      <div class="pick-info"><div class="pick-ticker">${e.ticker}</div><div class="pick-idx">${e.idx}</div></div>
+      <div><div class="pick-yld-val">${(e.yield*100).toFixed(1)}%</div><div class="pick-yld-label">연 배당률</div></div>
+    </div>
+    ${on?`<div class="wt-row">
+      <span class="wt-label">비중</span>
+      <input type="range" min="5" max="90" step="5" value="${s.wt}" oninput="changeWt('${e.ticker}',+this.value)" onclick="event.stopPropagation()">
+      <span class="wt-val-span" id="wv_${sid(e.ticker)}">${s.wt}%</span>
+    </div>`:''}
+  </div>`;
+}
+function togglePick(ticker,type,yld,idx){
+  if(selected[ticker]){delete selected[ticker];}
+  else{
+    const n=Object.keys(selected).length+1;
+    const eq=Math.floor(100/n);
+    Object.keys(selected).forEach(k=>selected[k].wt=eq);
+    selected[ticker]={type,yield:yld,idx,wt:eq};
+  }
+  renderPicks();calcCustom();
+}
+function changeWt(ticker,val){
+  if(!selected[ticker])return;
+  selected[ticker].wt=val;
+  const el=document.getElementById('wv_'+sid(ticker));
+  if(el)el.textContent=val+'%';
+  renderWtBar();calcCustom();
+}
+function renderWtBar(){
+  const total=Object.values(selected).reduce((s,v)=>s+v.wt,0);
+  const el=document.getElementById('wtTotal');
+  el.textContent=total+'%';el.className='wt-total '+(total===100?'ok':'over');
+  const bar=document.getElementById('wtBar');
+  bar.style.width=Math.min(100,total)+'%';
+  bar.style.background=total===100?'#34d17a':total>100?'#ff5a5a':'#6c8bff';
+}
+function addETF(){
+  const ticker=document.getElementById('addTicker').value.trim().toUpperCase();
+  const yldRaw=parseFloat(document.getElementById('addYield').value);
+  const type=document.getElementById('addType').value;
+  if(!ticker||isNaN(yldRaw)||yldRaw<=0){alert('티커명과 배당률을 입력해주세요');return;}
+  const yld=yldRaw/100;
+  const pool=type==='cc'?POOL_CC:POOL_OG;
+  if(!pool.find(e=>e.ticker===ticker))pool.push({ticker,idx:'직접추가',yield:yld});
+  const n=Object.keys(selected).length+1;
+  const eq=Math.floor(100/n);
+  Object.keys(selected).forEach(k=>selected[k].wt=eq);
+  selected[ticker]={type,yield:yld,idx:'직접추가',wt:eq};
+  document.getElementById('addTicker').value='';document.getElementById('addYield').value='';
+  renderPicks();calcCustom();
+}
+
+function getAutoETFs(){
+  const ccR=+document.getElementById('aCCRatio').value/100;
+  const src=DB[curMarket];let all=[];
+  Object.keys(activeIdx).forEach(k=>{if(activeIdx[k]&&src[k])all=all.concat(src[k]);});
+  if(!all.length)return[];
+  const cc=all.filter(e=>e.type==='cc'),og=all.filter(e=>e.type==='og');
+  const cs=cc.reduce((s,e)=>s+e.wt,0)||1,os=og.reduce((s,e)=>s+e.wt,0)||1;
+  return[...cc.map(e=>({...e,alloc:(e.wt/cs)*ccR})),...og.map(e=>({...e,alloc:(e.wt/os)*(1-ccR)}))];
+}
+function calc(){
+  const target=+document.getElementById('aTarget').value;
+  const ccR=+document.getElementById('aCCRatio').value;
+  const inv=+document.getElementById('aInv').value;
+  document.getElementById('aTargetVal').textContent=target+'만원';
+  document.getElementById('aCCVal').textContent=ccR+'%';
+  document.getElementById('ccPct').textContent=ccR;
+  document.getElementById('ogPct').textContent=100-ccR;
+  document.getElementById('rCC').style.width=ccR+'%';
+  document.getElementById('rOG').style.width=(100-ccR)+'%';
+  document.getElementById('aInvVal').textContent=inv+'만원';
+  const etfs=getAutoETFs();
+  if(!etfs.length){document.getElementById('etfList').innerHTML='<div class="empty-msg">지수를 선택해주세요</div>';return;}
+  const avgY=etfs.reduce((s,e)=>s+e.alloc*e.yield,0);
+  const principal=principalForTarget(target,avgY,curAcct);
+  renderResults(etfs,principal,avgY,inv,target,true);
+}
+function calcCustom(){
+  const target=+document.getElementById('cTarget').value;
+  const inv=+document.getElementById('cInv').value;
+  document.getElementById('cTargetVal').textContent=target+'만원';
+  document.getElementById('cInvVal').textContent=inv+'만원';
+  const keys=Object.keys(selected);
+  if(!keys.length){document.getElementById('etfList').innerHTML='<div class="empty-msg">종목을 선택해주세요</div>';return;}
+  const totalWt=keys.reduce((s,k)=>s+selected[k].wt,0)||1;
+  const etfs=keys.map(k=>({ticker:k,...selected[k],alloc:selected[k].wt/totalWt}));
+  const avgY=etfs.reduce((s,e)=>s+e.alloc*e.yield,0);
+  const principal=principalForTarget(target,avgY,curAcct);
+  renderResults(etfs,principal,avgY,inv,target,false);
+}
+
+function fmtM(n){
+  if(n>=10000){const u=Math.floor(n/10000),m=Math.round((n%10000)/1000)*1000;return m?u+'억 '+m+'만':u+'억';}
+  return Math.round(n)+'만';
+}
+
+function renderResults(etfs,principal,avgY,monthlyInv,target,showSteps){
+  const age=getAge();
+  const initInv=getInitInv();
+  const growthRate=getGrowthRate();
+  const isISA=(curAcct==='isa');
+  const annualDiv=principal*avgY;
+  const effRate=effectiveTaxRate(annualDiv,curAcct);
+  const afterTax=afterTaxMonthly(principal,avgY,curAcct);
+
+  document.getElementById('rPrincipal').textContent=fmtM(principal)+'원';
+  document.getElementById('rYield').textContent=(avgY*100).toFixed(2)+'%';
+  document.getElementById('rTaxRate').textContent=(effRate*100).toFixed(1)+'%';
+  document.getElementById('rTaxDesc').textContent=isISA?'ISA 실효세율':'일반 배당소득세';
+  document.getElementById('rAfterTax').textContent=afterTax.toLocaleString()+'만원';
+  document.getElementById('rGrowth').textContent=(growthRate*100).toFixed(1)+'% 반영';
+  document.getElementById('rGrowthSub').textContent=
+    growthRate===0?'주가 상승 미반영 (보수적 시나리오)':
+    growthRate<=0.03?'커버드콜 위주 보수적 상승':
+    growthRate<=0.07?'혼합 포트폴리오 적정 상승':'원지수 위주 낙관적 시나리오';
+
+  const now=new Date().getFullYear();
+  let acc=initInv,achY=-1;
+  const tl=[];
+  for(let y=1;y<=40;y++){
+    const capitalGain=acc*growthRate;
+    const divAfterTax=acc*avgY*(1-effRate);
+    acc=acc+capitalGain+divAfterTax+monthlyInv*12;
+    const curAT=afterTaxMonthly(Math.round(acc),avgY,curAcct);
+    const done=curAT>=target;
+    const pct=Math.min(100,Math.round(acc/principal*100));
+    tl.push({year:now+y,age:age+y,y,acc:Math.round(acc),md:curAT,pct,done});
+    if(achY===-1&&done)achY=y;
+    if(done)break;
+  }
+
+  document.getElementById('yearsLeft').textContent=achY>0?achY:'20+';
+  document.getElementById('initDisplay').textContent=initInv.toLocaleString()+'만원';
+
+  if(achY>0){
+    const achAge=age+achY;
+    document.getElementById('rAchieve').textContent=achY+'년 후 달성';
+    document.getElementById('rAchieveSub').textContent=(now+achY)+'년 · 세후 월 '+target+'만원';
+    document.getElementById('rAchieveAge').textContent='만 '+achAge+'세';
+    document.getElementById('rAchieveAgeSub').textContent='현재 '+age+'세 기준';
+  } else {
+    document.getElementById('rAchieve').textContent='20년 이상';
+    document.getElementById('rAchieveSub').textContent='투자액 또는 초기금 조정 필요';
+    document.getElementById('rAchieveAge').textContent='-';
+    document.getElementById('rAchieveAgeSub').textContent='달성 기간 초과';
+  }
+
+  if(isISA){
+    const normalTax=Math.round(annualDiv*0.154/12);
+    const isaTax=Math.round(annualDiv*effRate/12);
+    const saved=normalTax-isaTax;
+    document.getElementById('taxNormal').textContent=normalTax.toLocaleString()+'만/월';
+    document.getElementById('taxISA').textContent=isaTax.toLocaleString()+'만/월';
+    document.getElementById('savingRows').innerHTML=`
+      <div class="saving-row"><span class="saving-label">월 세금 절감액</span><div style="display:flex;gap:.5rem;align-items:center"><span class="saving-isa">+${saved.toLocaleString()}만원</span><span class="saving-diff">매월</span></div></div>
+      <div class="saving-row"><span class="saving-label">연간 절감액</span><span class="saving-isa">+${(saved*12).toLocaleString()}만원</span></div>
+      <div class="saving-row"><span class="saving-label">10년 누적 절감</span><span class="saving-isa">+${fmtM(saved*12*10)}원 이상</span></div>`;
+  }
+
+  document.getElementById('tlDiv').innerHTML=tl.map(d=>`
+    <div class="tl-row">
+      <div class="tl-top"><span class="tl-year">${d.year}년 · 만 ${d.age}세 (${d.y}년차)</span>${d.done?'<span class="tl-flag">목표달성</span>':''}</div>
+      <div class="tl-bar-bg"><div class="tl-bar-fill${d.done?' done':''}" style="width:${d.pct}%"></div></div>
+      <div class="tl-bottom"><span>누적 <strong>${fmtM(d.acc)}원</strong></span><span>세후 월배당 <strong>${d.md.toLocaleString()}만</strong></span><span><strong>${d.pct}%</strong></span></div>
+    </div>`).join('');
+
+  if(tlCI)tlCI.destroy();
+  tlCI=new Chart(document.getElementById('tlChart'),{
+    type:'bar',
+    data:{labels:tl.map(d=>d.age+'세'),datasets:[
+      {type:'bar',label:'누적 자산(만원)',data:tl.map(d=>d.acc),backgroundColor:tl.map(d=>d.done?'#34d17a':(isISA?'#ffd166':'#6c8bff')),borderRadius:4,borderSkipped:false,yAxisID:'y'},
+      {type:'line',label:'세후 월배당(만원)',data:tl.map(d=>d.md),borderColor:'#f5a623',backgroundColor:'rgba(245,166,35,0.08)',borderWidth:2,pointRadius:2,tension:.4,yAxisID:'y2',fill:true},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'top',labels:{color:'#9090aa',font:{size:10},boxWidth:8,padding:10}}},
+      scales:{
+        x:{ticks:{color:'#5a5a72',font:{size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#5a5a72',font:{size:9},callback:v=>v>=10000?(v/10000).toFixed(0)+'억':v+'만'},grid:{color:'rgba(255,255,255,0.04)'}},
+        y2:{position:'right',ticks:{color:'#f5a623',font:{size:9},callback:v=>v+'만'},grid:{display:false}}
+      }}
+  });
+
+  const rows=etfs.map(e=>({...e,inv:Math.round(principal*e.alloc),mon:Math.round(principal*e.alloc*e.yield/12),pct:Math.round(e.alloc*100)}));
+  document.getElementById('etfList').innerHTML=rows.map((r,i)=>`
+    <div class="etf-item">
+      <div class="etf-top"><span class="etf-ticker">${r.ticker}</span><span class="badge ${r.type==='cc'?'badge-cc':'badge-og'}">${r.type==='cc'?'커버드콜':'원지수'}</span></div>
+      <div class="etf-idx">${r.idx}</div>
+      <div class="etf-bar-bg"><div class="etf-bar-fill" style="width:${r.pct}%;background:${COLORS[i%COLORS.length]}"></div></div>
+      <div class="etf-stats">
+        <div><div class="etf-stat-label">배당률</div><div class="etf-stat-val">${(r.yield*100).toFixed(1)}%</div></div>
+        <div><div class="etf-stat-label">비중</div><div class="etf-stat-val">${r.pct}%</div></div>
+        <div><div class="etf-stat-label">투자금</div><div class="etf-stat-val">${fmtM(r.inv)}</div></div>
+        <div><div class="etf-stat-label">월 배당</div><div class="etf-stat-val">${r.mon.toLocaleString()}만</div></div>
+      </div>
+    </div>`).join('');
+
+  if(pieCI)pieCI.destroy();
+  pieCI=new Chart(document.getElementById('pieChart'),{
+    type:'doughnut',
+    data:{labels:rows.map(r=>r.ticker),datasets:[{data:rows.map(r=>r.pct),backgroundColor:COLORS.slice(0,rows.length),borderWidth:2,borderColor:'#13131a'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:true,position:'right',labels:{color:'#9090aa',font:{size:10},boxWidth:9,padding:7}}}}
+  });
+
+  if(showSteps){
+    const steps=DB[curMarket].steps;
+    const ranges=['~1억','1억~1.5억','1.5억~'+fmtM(principal)+'원'];
+    document.getElementById('stepsDiv').innerHTML=steps.map((s,i)=>`
+      <div class="step-row">
+        <div class="step-badge">${i+1}</div>
+        <div><div class="step-title">${i+1}단계 <span style="font-weight:400;color:var(--text3);font-size:11px">(${ranges[i]})</span></div><div class="step-text">${s}</div></div>
+      </div>`).join('');
+  }
+}
+
+document.getElementById('warnBox').innerHTML='<strong>유의사항</strong> — '+DB.kr.warn+' 본 계산기는 참고용이며 투자 권유가 아닙니다.';
+calc();
+</script>
+</body>
+</html>
